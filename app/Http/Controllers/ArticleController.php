@@ -49,36 +49,66 @@ class ArticleController extends Controller
     }
 
     public function detail(Request $request){
+        $allLink = array();
+        $cluster_id = "";
+        $relate_id = "";
+
         $nameArticle = $request->all()['article'];
-        $query = "https://scholar.google.com.vn/scholar?q=".urlencode($nameArticle)."&btnG=&hl=vi&as_sdt=0%2C5";
-        $rs = file_get_html($query);
-        $div = $rs->find('div[class="gs_fl"]')[1];
-        $aTag = $div->find('a');
         
-        $cluster_id = $aTag[0]->href;
-        $cluster_id = str_replace("/scholar?cites=","",$cluster_id);
-        $cluster_id = str_replace("&amp;as_sdt=2005&amp;sciodt=0,5&amp;hl=vi&amp;oe=ASCII","",$cluster_id);
-        
-        $relate_id = $aTag[1]->href;
-        $relate_id = str_replace("/scholar?q=related:", "", $relate_id);
-        $relate_id = str_replace(":scholar.google.com/&amp;hl=vi&amp;oe=ASCII&amp;as_sdt=0,5", "", $relate_id);
+        $articleNeedInfo = Article::where("name", $nameArticle)->first();
+
+        if($articleNeedInfo == null){
+            $query = "https://scholar.google.com.vn/scholar?q=".urlencode($nameArticle)."&btnG=&hl=vi&as_sdt=0%2C5";
+
+            $rs = file_get_html($query);
+            $div = $rs->find('div[class="gs_r"]')[0];
+            $div1 = $div->find('div[class="gs_ri"]')[0];
+            $div2 = $div1->find('div[class="gs_fl"]')[0];
+            $aTags = $div2->find('a');
+            foreach ($aTags as $aTag) {
+                array_push($allLink, $aTag->href);
+                if(strpos($aTag->href, "/scholar?q=related") !== false){
+                    $relate_id = $aTag->href;
+                    $relate_id = str_replace("/scholar?q=related:", "", $relate_id);
+                    $relate_id = str_replace(":scholar.google.com/&amp;hl=vi&amp;oe=ASCII&amp;as_sdt=0,5", "", $relate_id);
+                }
+                if($cluster_id == ""){
+                    if(strpos($aTag->href, "/scholar?cluster=") !== false){
+                        $cluster_id = $aTag->href;
+                        $cluster_id = str_replace("/scholar?cluster=","",$cluster_id);
+                        $cluster_id = str_replace("&hl=vi&as_sdt=0,5","",$cluster_id);
+                        $cluster_id = str_replace("&hl=vi&oe=ASCII&as_sdt=0,5", "", $cluster_id);
+                    }
+
+                    
+                    if(strpos($aTag->href, "/scholar?cites=") !== false){
+                        $cluster_id = $aTag->href;
+                        $cluster_id = str_replace("/scholar?cites=","",$cluster_id);
+                        $cluster_id = str_replace("&amp;as_sdt=2005&amp;sciodt=0,5&amp;hl=vi&amp;oe=ASCII","",$cluster_id);
+                        $cluster_id = str_replace("&hl=vi&oe=ASCII&as_sdt=0,5", "", $cluster_id);
+                    }
+                }
+            }
 
 
-        $query = "https://scholar.google.com.vn/scholar?q=info:".$relate_id.":scholar.google.com/&output=cite&scirp=0&hl=vi";
-        $rs = file_get_html($query);
-        $mla = $rs->find('div[id="gs_cit0"]')[0];
-        $apa = $rs->find('div[id="gs_cit1"]')[0];
-        $iso = $rs->find('div[id="gs_cit2"]')[0];
-        
-        $article = new Article();
-        $article->name = $nameArticle;
-        $article->cluster_id = $cluster_id;
-        $article->mla = $mla->plaintext;
-        $article->apa = $apa->plaintext;
-        $article->iso = $iso->plaintext;
-        $article->save();
+            $query = "https://scholar.google.com.vn/scholar?q=info:".$relate_id.":scholar.google.com/&output=cite&scirp=0&hl=vi";
+            $rs = file_get_html($query);
+            $mla = $rs->find('div[id="gs_cit0"]')[0];
+            $apa = $rs->find('div[id="gs_cit1"]')[0];
+            $iso = $rs->find('div[id="gs_cit2"]')[0];
+         
+            $article = new Article();
+            $article->name = $nameArticle;
+            $article->cluster_id = $cluster_id;
+            $article->mla = utf8_encode($mla->plaintext);
+            $article->apa = utf8_encode($apa->plaintext);
+            $article->iso = utf8_encode($iso->plaintext);
+            $article->save();
 
-        return view('result')->with('article', $article);
+            return view('result')->with('article', $article);
+        }else{
+            return view('result')->with('article', $articleNeedInfo);
+        }
     }
 
 }

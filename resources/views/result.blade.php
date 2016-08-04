@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <title>Result</title>
 </head>
-<body>
-{{dd($article)}}    
+<body> 
     <b>Name: </b><p>{{$article->name}}</p><br>
     <b>Cluster Id: </b><p>{{$article->cluster_id}}</p><br>
     <b>MLA: </b><p>{{$article->mla}}</p><br>
