@@ -3,7 +3,7 @@
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateArticlesTable extends Migration
+class CreateGsArticlesTable extends Migration
 {
     /**
      * Run the migrations.
@@ -12,14 +12,16 @@ class CreateArticlesTable extends Migration
      */
     public function up()
     {
-        Schema::create('articles', function (Blueprint $table) {
+        Schema::create('gs_articles', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('name');
-            $table->string('sourcelink');
+            $table->string('title');
+            $table->string('author');
+            $table->text('uri');
             $table->string('cluster_id');
-            $table->string('mla');
-            $table->string('apa');
-            $table->string('iso');
+            $table->integer('cites');
+            $table->text('mla');
+            $table->text('apa');
+            $table->text('iso');
             $table->timestamps();
         });
     }
@@ -31,6 +33,6 @@ class CreateArticlesTable extends Migration
      */
     public function down()
     {
-        Schema::drop('articles');
+        Schema::drop('gs_articles');
     }
 }

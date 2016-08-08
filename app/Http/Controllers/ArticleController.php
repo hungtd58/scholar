@@ -8,6 +8,8 @@ use App\Http\Requests;
 
 use App\Article;
 
+use Illuminate\Support\Facades\Input;
+
 require_once "simple_html_dom.php";
 
 class ArticleController extends Controller
@@ -42,7 +44,14 @@ class ArticleController extends Controller
         $articles = $rs->find('table tbody tr td div a text');
         foreach ($articles as $link) {
             if($link->outertext != "PDF"){
-                array_push($allArticle, $link->outertext);   
+                array_push($allArticle, $link->outertext);  
+                $articleFind = Article::where('name', $link->outertext)->first();
+                if($articleFind == null){
+                    $article = new Article();
+                    $article->name = $link->outertext;
+                    $article->sourcelink = $link->parent->href;
+                    $article->save();
+                }  
             }
         }
         return view('articles_vol')->with('articles_vol', $allArticle);
@@ -57,8 +66,8 @@ class ArticleController extends Controller
         
         $articleNeedInfo = Article::where("name", $nameArticle)->first();
 
-        if($articleNeedInfo == null){
-            $query = "https://scholar.google.com.vn/scholar?q=".urlencode($nameArticle)."&btnG=&hl=vi&as_sdt=0%2C5";
+        if($articleNeedInfo == null || $articleNeedInfo->mla == ""){
+            $query = "https://scholar.google.com.vn/scholar?q=".urlencode($nameArticle);
 
             $rs = file_get_html($query);
             $div = $rs->find('div[class="gs_r"]')[0];
@@ -67,48 +76,66 @@ class ArticleController extends Controller
             $aTags = $div2->find('a');
             foreach ($aTags as $aTag) {
                 array_push($allLink, $aTag->href);
-                if(strpos($aTag->href, "/scholar?q=related") !== false){
-                    $relate_id = $aTag->href;
-                    $relate_id = str_replace("/scholar?q=related:", "", $relate_id);
-                    $relate_id = str_replace(":scholar.google.com/&amp;hl=vi&amp;oe=ASCII&amp;as_sdt=0,5", "", $relate_id);
+                if($aTag->onclick != null && strpos($aTag->onclick, "gs_ocit") !== false){
+                    $relate_id = $aTag->onclick;
+                    $relate_id = str_replace("return gs_ocit(event,'", "", $relate_id);
+                    $relate_id = str_replace("','0')", "", $relate_id);
                 }
                 if($cluster_id == ""){
-                    if(strpos($aTag->href, "/scholar?cluster=") !== false){
+                    if(strpos($aTag->href, "?cluster=") !== false){
                         $cluster_id = $aTag->href;
-                        $cluster_id = str_replace("/scholar?cluster=","",$cluster_id);
-                        $cluster_id = str_replace("&hl=vi&as_sdt=0,5","",$cluster_id);
-                        $cluster_id = str_replace("&hl=vi&oe=ASCII&as_sdt=0,5", "", $cluster_id);
-                    }
-
-                    
-                    if(strpos($aTag->href, "/scholar?cites=") !== false){
-                        $cluster_id = $aTag->href;
-                        $cluster_id = str_replace("/scholar?cites=","",$cluster_id);
-                        $cluster_id = str_replace("&amp;as_sdt=2005&amp;sciodt=0,5&amp;hl=vi&amp;oe=ASCII","",$cluster_id);
-                        $cluster_id = str_replace("&hl=vi&oe=ASCII&as_sdt=0,5", "", $cluster_id);
+                            $cluster_id = str_replace("/scholar?cluster=","",$cluster_id);
+                            $cluster_id = str_replace("&amp;","",$cluster_id);
+                            $cluster_id = str_replace("hl=en","",$cluster_id);
+                            $cluster_id = str_replace("hl=vi","",$cluster_id);
+                            $cluster_id = str_replace("as_sdt=0,5","",$cluster_id);
+                            $cluster_id = str_replace("sciodt=0,5","",$cluster_id);
+                            $cluster_id = str_replace("oe=ASCII","",$cluster_id);
+                            $cluster_id = str_replace("as_sdt=2005","",$cluster_id);
                     }
                 }
             }
-
 
             $query = "https://scholar.google.com.vn/scholar?q=info:".$relate_id.":scholar.google.com/&output=cite&scirp=0&hl=vi";
             $rs = file_get_html($query);
             $mla = $rs->find('div[id="gs_cit0"]')[0];
             $apa = $rs->find('div[id="gs_cit1"]')[0];
             $iso = $rs->find('div[id="gs_cit2"]')[0];
-         
-            $article = new Article();
-            $article->name = $nameArticle;
-            $article->cluster_id = $cluster_id;
-            $article->mla = utf8_encode($mla->plaintext);
-            $article->apa = utf8_encode($apa->plaintext);
-            $article->iso = utf8_encode($iso->plaintext);
-            $article->save();
+            
+            if($articleNeedInfo == null){
+                $article = new Article();
+                $article->name = $nameArticle;
+                $article->cluster_id = $cluster_id;
+                $article->mla = utf8_encode($mla->plaintext);
+                $article->apa = utf8_encode($apa->plaintext);
+                $article->iso = utf8_encode($iso->plaintext);
+                $article->save();                
+                return view('result')->with('article', $article);
+            }else{
+                Article::where("name", $nameArticle)->update(['cluster_id' => $cluster_id,
+                                                              'mla' => utf8_encode($mla->plaintext),
+                                                              'apa' => utf8_encode($apa->plaintext),
+                                                              'iso' => utf8_encode($iso->plaintext)]);
 
-            return view('result')->with('article', $article);
+                $article = Article::where("name", $nameArticle)->first();
+                return view('result')->with('article', $article);
+            }
         }else{
             return view('result')->with('article', $articleNeedInfo);
         }
     }
 
+    public function search(){
+        $query = Input::get('q', 'default_query');
+        $articles = Article::where('name', 'LIKE', '%'.$query.'%')
+                            ->orWhere('mla', 'LIKE', '%'.$query.'%')
+                            ->orWhere('apa', 'LIKE', '%'.$query.'%')
+                            ->orWhere('iso', 'LIKE', '%'.$query.'%')
+                            ->get();
+        return view('CiteSeerXResult')->with(['articles' => $articles, 'q' =>$query]);
+    }
+
+    public function result(){
+        return view('CiteSeerXResult');
+    }
 }
