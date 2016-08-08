@@ -178,7 +178,7 @@
                     <h3>
 
                         <a class="remove doc_details"
-                           href="{{$article->uri}}">
+                           href="{{$jsArticle->uri}}">
                             <em>{{$jsArticle->title}}</em>
                         </a>
 
@@ -205,7 +205,7 @@
                     </div>
                     @if($article->cluster_id != "")
                         <div class="pubextras">
-                            <a class="citation remove" href="./gsarticles/{{$article->cluster_id}}" title="number of citations">Citation {{$article->cites}}</a>
+                            <a class="citation remove" href="../gsarticles/{{$article->cluster_id}}" title="number of citations">Citation {{$article->cites}}</a>
                         </div>
                     @endif
                     <div class="pubtools">

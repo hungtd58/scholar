@@ -219,7 +219,7 @@
                     </div>
                 @endfor
                 @if(sizeof($articles) == 0)
-                    <h3>Không có dữ liệu</h3>
+                    <h5>Không có dữ liệu</h5>
                 @endif
             </div>
 
