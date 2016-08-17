@@ -33,18 +33,17 @@ class GsArticleController extends Controller
         $gs_articles = array();
         $query = "https://scholar.google.com.vn/scholar?cites=".$cluster_id_vnu;
         $rs = file_get_html($query);
-        $gs_ri = $rs->find('div[class="gs_ri"]');
-        foreach ($gs_ri as $item) {
-            $pos = array_search($item, $gs_ri);
-            $gs_title = $item->find('h3 a')[0]->innertext;
-            $gs_author = $item->find('div[class="gs_a"]')[0]->innertext;
-            $gs_uri = $item->find('h3 a')[0]->href;
+        $items = $rs->find('div[class="gs_ri"]');
+        for ($pos = 0; $pos < sizeof($items); $pos++) {
+            $gs_title = $items[$pos]->find('h3 a')[0]->innertext;
+            $gs_author = $items[$pos]->find('div[class="gs_a"]')[0]->innertext;
+            $gs_uri = $items[$pos]->find('h3 a')[0]->href;
             
             $allLink = array();
             $cluster_id = "";
             $relate_id = "";
             $cites = 0;
-            $aTags = $item->find('div[class="gs_fl"] a');
+            $aTags = $items[$pos]->find('div[class="gs_fl"] a');
             foreach ($aTags as $aTag) {
                 array_push($allLink, $aTag->href);
                 if($aTag->onclick != null && strpos($aTag->onclick, "gs_ocit") !== false){
@@ -96,7 +95,7 @@ class GsArticleController extends Controller
         }
         foreach ($gs_articles as $gs_article) {
             $citation = new Citation();
-            $citation->to_id = $id_vnu;
+            $citation->to_id = $js_article_id;
             $citation->from_id = $gs_article->id;
             $citation->save();
         }
